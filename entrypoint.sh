@@ -74,6 +74,7 @@ for b in "${branch[@]}"; do
         pre_release="false"
     fi
 done
+echo "current_branch = $current_branch"
 echo "pre_release = $pre_release"
 
 # fetch tags
