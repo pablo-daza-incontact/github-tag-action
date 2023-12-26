@@ -60,6 +60,11 @@ setOutput() {
 
 current_branch=$(git rev-parse --abbrev-ref HEAD)
 
+if [-n $current_branch]
+then
+  current_branch=${{ github.base_ref }}
+fi
+
 pre_release="$prerelease"
 IFS=',' read -ra branch <<< "$release_branches"
 for b in "${branch[@]}"; do
