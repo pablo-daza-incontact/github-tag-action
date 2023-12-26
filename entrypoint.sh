@@ -21,6 +21,8 @@ minor_string_token=${MINOR_STRING_TOKEN:-#minor}
 patch_string_token=${PATCH_STRING_TOKEN:-#patch}
 none_string_token=${NONE_STRING_TOKEN:-#none}
 branch_history=${BRANCH_HISTORY:-compare}
+fixed_version=${FIXED_VERSION:-}
+
 # since https://github.blog/2022-04-12-git-security-vulnerability-announced/ runner uses?
 git config --global --add safe.directory /github/workspace
 
@@ -77,8 +79,19 @@ echo "pre_release = $pre_release"
 # fetch tags
 git fetch --tags
 
-tagFmt="^v?[0-9]+\.[0-9]+\.[0-9]+$"
-preTagFmt="^v?[0-9]+\.[0-9]+\.[0-9]+(-$suffix\.[0-9]+)$"
+if [ -n "$fixed_version" ]
+then
+     echo "Fixed version was set"
+     tagFmt="^v?[${fixed_version}]+\.[0-9]+\.[0-9]+$"
+     preTagFmt="^v?[[${fixed_version}]+\.[0-9]+\.[0-9]+(-$suffix\.[0-9]+)$"
+else
+     tagFmt="^v?[0-9]+\.[0-9]+\.[0-9]+$"
+     preTagFmt="^v?[0-9]+\.[0-9]+\.[0-9]+(-$suffix\.[0-9]+)$"
+fi
+
+echo -e "Tag Filter"
+echo $tagFmt
+echo $preTagFmt
 
 # get the git refs
 git_refs=
@@ -99,24 +112,52 @@ matching_pre_tag_refs=$( (grep -E "$preTagFmt" <<< "$git_refs") || true)
 tag=$(head -n 1 <<< "$matching_tag_refs")
 pre_tag=$(head -n 1 <<< "$matching_pre_tag_refs")
 
+echo -e "\tCurrentTags:"
+echo -e $matching_tag_refs
+echo -e $matching_pre_tag_refs
+echo -e $tag
+echo -e $pre_tag
+
 # if there are none, start tags at INITIAL_VERSION
-if [ -z "$tag" ]
+if [ -z "$fixed_version" ]
 then
-    if $with_v
-    then
-        tag="v$initial_version"
-    else
-        tag="$initial_version"
-    fi
-    if [ -z "$pre_tag" ] && $pre_release
-    then
-        if $with_v
-        then
-            pre_tag="v$initial_version"
-        else
-            pre_tag="$initial_version"
-        fi
-    fi
+   if [ -z "$tag" ]
+	then
+		if $with_v
+		then
+			tag="v$initial_version"
+		else
+			tag="$initial_version"
+		fi
+		if [ -z "$pre_tag" ] && $pre_release
+		then
+			if $with_v
+			then
+				pre_tag="v$initial_version"
+			else
+				pre_tag="$initial_version"
+			fi
+		fi
+	fi
+else 
+	if [ -z "$tag" ]
+	then
+		if $with_v
+		then
+			tag="v$fixed_version.0.0"
+		else
+			tag="$fixed_version.0.0"
+		fi
+		if [ -z "$pre_tag" ] && $pre_release
+		then
+			if $with_v
+			then
+				pre_tag="v$fixed_version.0.0"
+			else
+				pre_tag="$fixed_version.0.0"
+			fi
+		fi
+	fi
 fi
 
 # get current commit hash for tag
@@ -239,6 +280,11 @@ if $dryrun
 then
     exit 0
 fi
+
+echo -e "Result Values:"
+echo "\tTarget: ${part}"
+echo -e "\tNew Tag: ${new}"
+echo "\tCurrent Tag: ${tag}"
 
 echo "EVENT: creating local tag $new"
 # create local git tag
